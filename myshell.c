@@ -1,9 +1,12 @@
+#include <fcntl.h>
+#include <signal.h>
+
 int prepare(void);
 int process_arglist(int count, char **arglist);
 int finalize(void);
 
 int prepare(void){
-
+    return 0;
 }
 
 int process_arglist(int count, char **arglist){
@@ -12,7 +15,6 @@ int process_arglist(int count, char **arglist){
     
     whichCmdAndWhere = (int*)calloc(2, sizeof(int));
     which_command(count, arglist, whichCmdAndWhere);
-    cmd = (char*)malloc(whichCmdAndWhere[1] * sizeof(char));
     /**
      * &
      **/
@@ -26,7 +28,7 @@ int process_arglist(int count, char **arglist){
         cmd = arglist[0];
         arglist[count-2] = NULL;
         to = arglist[count-1];
-        fileDesc = open(to,O_RDWR | O_CREAT, S_IWUSR);
+        fileDesc = open(to, O_RDWR | O_CREAT, 00700);
         if(fileDesc < 0){
             perror("failed to open file");
             exit(1);
@@ -36,8 +38,9 @@ int process_arglist(int count, char **arglist){
             perror("failed fork");
             exit(1);
         }
+        // Child
         if(pid == 0){
-          //add SIGINT handeling
+          SIGINT_handler(1);
           if(dup2(fileDesc,1) == -1){
               perror("failed dup2");
               exit(1);
@@ -48,6 +51,7 @@ int process_arglist(int count, char **arglist){
           perror("failed execvp");
           exit(1);
         }
+        // Parent
         close(fileDesc);
         // make parent wait until child process is done - no zombies!
         wait(NULL);
@@ -55,8 +59,59 @@ int process_arglist(int count, char **arglist){
      /**
      * |
      **/
-    if(whichCmdAndWhere[0] == 3){   
-        //add
+    if(whichCmdAndWhere[0] == 3){
+        int p, pid[2], fd[2], r, w;
+        cmd = arglist[0];
+        arglist[whichCmdAndWhere[1]] = NULL;
+        p = pipe(fd);
+        if(p == -1){
+            perror("failed pipe");
+            exit(1);
+        }
+        r = fd[0];
+        w = fd[1];
+        pid[0] = fork();
+        // Child 1 - writes to stdout
+        if(pid[0] < 0){
+            perror("failed fork");
+            exit(1);
+        }
+        if(pid[0] == 0){
+            SIGINT_handler(1);
+            if(dup2(w,1) == -1){
+                perror("failed dup2");
+                exit(1);
+            }
+            close(r);
+            close(w); //??
+            execvp(cmd, arglist);
+            // will only reach this line if execvp fails
+            perror("failed execvp");
+            exit(1);
+        }
+        // back to parent
+        pid[1] = fork();
+        // child 2  - accecpts input from stdin
+        if(pid[1] < 0){
+            perror("failed fork");
+            exit(1);
+        }
+        cmd = arglist[whichCmdAndWhere[1]+1];
+        if(pid[1] == 0){
+        SIGINT_handler(1);
+        if(dup2(r,0) == -1){
+            perror("failed dup2");
+            exit(1);
+        }
+        close(r); //??
+        close(w); 
+        execvp(cmd, arglist + whichCmdAndWhere[1] + 1);
+        }
+        // make parent wait until  all child process is done - no zombies!
+        close(r);
+        close(w); 
+        // is one wait enough? 
+        wait(NULL);
     }
      /**
      * regular command
@@ -68,13 +123,15 @@ int process_arglist(int count, char **arglist){
             perror("failed fork");
             exit(1);
         }
+        // Child
         if(pid == 0){
-            //add SIGINT handeling
+            SIGINT_handler(1);
             execvp(cmd, arglist);
             // will only reach this line if execvp fails
             perror("failed execvp");
             exit(1);
         }
+        // Parent
         // make parent wait until child process is done - no zombies!
         wait(NULL);
     }
@@ -94,6 +151,8 @@ int finalize(void){
  * 
  **/
 void which_command(int count, char **arglist, int* res){
+    int i;
+
     if (strcmp(arglist[count -1],"&") == 0){
        res[0] = 1;
        res[1] = count -1;
@@ -102,7 +161,7 @@ void which_command(int count, char **arglist, int* res){
         res[0] = 2;
         res[1] = count -2;
     }
-    for( i = 0; i < count; i++){
+    for(i = 0; i < count; i++){
         if(strcmp(arglist[i], "|") == 0){
             res[0] = 3;
             res[1] = i;
@@ -113,14 +172,15 @@ void which_command(int count, char **arglist, int* res){
     return ;
 }
 
-void SIGINT_handler(int isChild){
+void SIGINT_handler(int shouldTerminate){
     struct sigaction sig{
         .sa_flags = SA_RESTART;
     };
-    if(isChild == 1){
+    
+    if(shouldTerminate == 1){
         sig.sa_flags = SIG_IGN;
     }
-     if(isChild == 0){
+     if(shouldTerminate == 0){
         sig.sa_flags = SIG_DFL;
     }
     //deal with error
