@@ -6,6 +6,12 @@ int process_arglist(int count, char **arglist);
 int finalize(void);
 
 int prepare(void){
+    struct sigaction shell;
+    shell.sa_flags = SIG_IGN;
+    if(sigaction(SIGINT, &shell,NULL)== -1){
+        perror("failed init shell");
+        exit(1);
+    }
     return 0;
 }
 
@@ -17,18 +23,19 @@ int doBackground(int count, char **arglist){
     pid = fork();
     if(pid < 0){
         perror("failed fork");
-        exit(1);
+        return 0;
     }
     // Child
     if(pid == 0){
-        SIGINT_handler(1);
+       SIGINT_handler(0);
+        arglist[count-1] = NULL;
         execvp(cmd, arglist);
         // will only reach this line if execvp fails
         perror("failed execvp");
         exit(1);
     }
     // Parent doesn't have to wait for child to return
-    return 0;
+    return 1;
 }
 
 int doRedirection(int count, char **arglist){
@@ -41,21 +48,25 @@ int doRedirection(int count, char **arglist){
     fileDesc = open(to, O_RDWR | O_CREAT, 00700);
     if(fileDesc < 0){
         perror("failed to open file");
-        exit(1);
+        return 0;
     }
     pid = fork();
     if(pid < 0){
         perror("failed fork");
-        exit(1);
+        return 0;
     }
     // Child
     if(pid == 0){
-        SIGINT_handler(1);
+       SIGINT_handler(1);
         if(dup2(fileDesc,1) == -1){
+            close(fileDesc);
             perror("failed dup2");
             exit(1);
         }
-        close(fileDesc);
+        if(close(fileDesc)== -1){
+            perror("failed to close fileDesc");
+            exit(1);
+        }
         execvp(cmd, arglist);
         // will only reach this line if execvp fails
         perror("failed execvp");
@@ -65,19 +76,19 @@ int doRedirection(int count, char **arglist){
     close(fileDesc);
     // make parent wait until child process is done - no zombies!
     wait(NULL);
-    return 0;
+    return 1;
 }
 
-int doPipe(int count, char **arglist, int * whichCmdAndWhere){
+int doPipe(int count, char **arglist, int whereIsSym){
     int p, pid[2], fd[2], r, w;
     char *cmd;
 
     cmd = arglist[0];
-    arglist[whichCmdAndWhere[1]] = NULL;
+    arglist[whereIsSym] = NULL;
     p = pipe(fd);
     if(p == -1){
         perror("failed pipe");
-        exit(1);
+        return 0;
     }
     r = fd[0];
     w = fd[1];
@@ -85,16 +96,23 @@ int doPipe(int count, char **arglist, int * whichCmdAndWhere){
     // Child 1 - writes to stdout
     if(pid[0] < 0){
         perror("failed fork");
-        exit(1);
+        return 0;
     }
+    //child 1
     if(pid[0] == 0){
         SIGINT_handler(1);
         if(dup2(w,1) == -1){
             perror("failed dup2");
             exit(1);
         }
-        close(r);
-        close(w); //??
+        if(close(r) == -1){
+            perror("failed to close read");
+            exit(1);
+        }
+        if(close(w) == -1){
+            perror("failed to close write");
+            exit(1);
+        }
         execvp(cmd, arglist);
         // will only reach this line if execvp fails
         perror("failed execvp");
@@ -105,22 +123,35 @@ int doPipe(int count, char **arglist, int * whichCmdAndWhere){
     // child 2  - accecpts input from stdin
     if(pid[1] < 0){
         perror("failed fork");
-        exit(1);
+        return 0;
     }
-    cmd = arglist[whichCmdAndWhere[1]+1];
+    cmd = arglist[whereIsSym+1];
+    // child 2
     if(pid[1] == 0){
-    SIGINT_handler(1);
-    if(dup2(r,0) == -1){
-        perror("failed dup2");
-        exit(1);
-    }
-    close(r); //??
-    close(w); 
-    execvp(cmd, arglist + whichCmdAndWhere[1] + 1);
+        SIGINT_handler(1);
+        if(dup2(r,0) == -1){
+            perror("failed dup2");
+            exit(1);
+        }
+        if(close(r) == -1){
+            perror("failed to close read");
+            exit(1);
+        }
+        if(close(w) == -1){
+            perror("failed to close write");
+            exit(1);
+        }
+        execvp(cmd, arglist + whereIsSym + 1);
     }
     // make parent wait until  all child process is done - no zombies!
-    close(r);
-    close(w); 
+    if(close(r) == -1){
+        perror("failed to close read");
+        return 0;
+    }
+    if(close(w) == -1){
+        perror("failed to close write");
+        return 0;
+    } 
     // is one wait enough? 
     wait(NULL);
 }
@@ -133,7 +164,7 @@ int doRegular(int count, char **arglist){
     pid = fork();
     if(pid < 0){
         perror("failed fork");
-        exit(1);
+        return 0;
     }
     // Child
     if(pid == 0){
@@ -149,8 +180,7 @@ int doRegular(int count, char **arglist){
 }
 
 int process_arglist(int count, char **arglist){
-    int *whichCmdAndWhere,fileDesc,pid, ind;
-    char *cmd, *to;
+    int *whichCmdAndWhere;
     
     whichCmdAndWhere = (int*)calloc(2, sizeof(int));
     which_command(count, arglist, whichCmdAndWhere);
@@ -158,27 +188,27 @@ int process_arglist(int count, char **arglist){
      * &
      **/
     if(whichCmdAndWhere[0] == 1){
-       doBackground(count, arglist);
+       return doBackground(count, arglist);
     }
      /**
      * >
      **/
     if(whichCmdAndWhere[0] == 2){
-        ind = doRedirection(count, arglist);
+       return doRedirection(count, arglist);
     }
      /**
      * |
      **/
     if(whichCmdAndWhere[0] == 3){
-        ind = doPipe(count, arglist, whichCmdAndWhere);
+      return doPipe(count, arglist, whichCmdAndWhere[1]);
     }
      /**
      * regular command
      **/
     if(whichCmdAndWhere[0] == 4){
-        ind = doRegular(count, arglist);
+       return doRegular(count, arglist);
     }
-       
+    return 1;  
 }
 
 int finalize(void){
@@ -220,15 +250,24 @@ void which_command(int count, char **arglist, int* res){
 }
 
 void SIGINT_handler(int shouldTerminate){
-    struct sigaction sig{
-        .sa_flags = SA_RESTART;
-    };
+    struct sigaction sig;
+    int signal, changed;
+    sig.sa_flags = SA_RESTART;
     
     if(shouldTerminate == 1){
-        sig.sa_flags = SIG_IGN;
+        sig.sa_flags = SIG_DFL;
+        signal = SIGINT;
+        changed = sigaction(signal, &sig, NULL);
+        if(changed == -1){
+            perror("failed signals");
+        }
     }
      if(shouldTerminate == 0){
-        sig.sa_flags = SIG_DFL;
+        sig.sa_flags = SIG_IGN;
+        signal = SIGCHLD;
+        changed = sigaction(signal, &sig, NULL);
+        if(changed == -1){
+            perror("failed signals");
+        }
     }
-    //deal with error
 }
