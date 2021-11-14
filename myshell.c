@@ -174,7 +174,7 @@ int doPipe(int count, char **arglist, int whereIsSym){
 
 int doRegular(int count, char **arglist){
     char *cmd;
-    int pid;
+    int pid, i;
 
     cmd = arglist[0];
     pid = fork();
@@ -188,7 +188,9 @@ int doRegular(int count, char **arglist){
         SIGINT_handler(1);
         printf("reached here - forked");
         printf("%s", cmd);
-        printf("%s", arglist);
+        for(i = 0; i< count; i++){
+            printf("%s", arglist[i]);
+        }
         execvp(cmd, arglist);
         // will only reach this line if execvp fails
         perror("failed execvp");
