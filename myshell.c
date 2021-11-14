@@ -9,16 +9,21 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
-#define NULL ((char *)0)
-
 int prepare(void);
 int process_arglist(int count, char **arglist);
 int finalize(void);
+int doBackground(int count, char **arglist);
+int doRedirection(int count, char **arglist);
+int doPipe(int count, char **arglist, int whereIsSym);
+int doRegular(int count, char **arglist);
+int process_arglist(int count, char **arglist);
+void which_command(int count, char **arglist, int* res);
+void SIGINT_handler(int shouldTerminate);
 
 int prepare(void){
-    struct sigaction shell;
-    shell.sa_flags = SIG_IGN;
-    if(sigaction(SIGINT, &shell,NULL)== -1){
+    struct sigaction s;
+    s.sa_flags = SIG_IGN;
+    if(sigaction(SIGINT, s ,NULL)== -1){
         perror("failed init shell");
         exit(1);
     }
@@ -164,6 +169,7 @@ int doPipe(int count, char **arglist, int whereIsSym){
     } 
     // is one wait enough? 
     wait(NULL);
+    return 1;
 }
 
 int doRegular(int count, char **arglist){
@@ -187,6 +193,7 @@ int doRegular(int count, char **arglist){
     // Parent
     // make parent wait until child process is done - no zombies!
     wait(NULL);
+    return 1;
 }
 
 int process_arglist(int count, char **arglist){
@@ -256,7 +263,7 @@ void which_command(int count, char **arglist, int* res){
     }
     res[0] = 4;
     res[1] = 0;
-    return ;
+    return;
 }
 
 void SIGINT_handler(int shouldTerminate){
