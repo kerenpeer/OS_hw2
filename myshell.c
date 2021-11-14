@@ -95,10 +95,9 @@ int doRedirection(int count, char **arglist){
 }
 
 int doPipe(int count, char **arglist, int whereIsSym){
-    int p, pid[2], fd[2], r, w;
+    int p, p1[2], fd[2], r, w, p1,p2;
     char *cmd;
 
-    pid = (int*)calloc(2, sizeof(int));
     cmd = arglist[whereIsSym+1];
     arglist[whereIsSym] = NULL;
     p = pipe(fd);
@@ -108,14 +107,14 @@ int doPipe(int count, char **arglist, int whereIsSym){
     }
     r = fd[0];
     w = fd[1];
-    pid[0] = fork();
+    p1 = fork();
     // Child 1 - writes to stdout
-    if(pid[0] < 0){
+    if(p1 < 0){
         perror("failed fork");
         return 0;
     }
     //child 1
-    if(pid[0] == 0){
+    if(p1 == 0){
         SIGINT_handler(1);
          if(close(w) == -1){
             perror("failed to close write");
@@ -129,21 +128,21 @@ int doPipe(int count, char **arglist, int whereIsSym){
             perror("failed to close read");
             exit(1);
         }
-        execvp((arglist + whereIsSym + 1)[0], arglist + whereIsSym + 1);
+        execvp(cmd, arglist + whereIsSym + 1);
         // will only reach this line if execvp fails
         perror("failed execvp");
         exit(1);
     }
     // back to parent
-    pid[1] = fork();
+    p2 = fork();
     // child 2  - accecpts input from stdin
-    if(pid[1] < 0){
+    if(p2 < 0){
         perror("failed fork");
         return 0;
     }
     cmd = arglist[0];
     // child 2
-    if(pid[1] == 0){
+    if(p2 == 0){
         SIGINT_handler(1);
         if(close(r) == -1){
             perror("failed to close read");
