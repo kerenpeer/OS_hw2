@@ -128,7 +128,7 @@ int doPipe(int count, char **arglist, int whereIsSym){
             perror("failed to close read");
             exit(1);
         }
-        execvp(cmd, arglist + whereIsSym + 1);
+        execvp((arglist + whereIsSym + 1)[0], arglist + whereIsSym + 1);
         // will only reach this line if execvp fails
         perror("failed execvp");
         exit(1);
