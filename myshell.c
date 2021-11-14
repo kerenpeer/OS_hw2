@@ -98,6 +98,7 @@ int doPipe(int count, char **arglist, int whereIsSym){
     int p, pid[2], fd[2], r, w;
     char *cmd;
 
+    pid = (int*)calloc(2, sizeof(int));
     cmd = arglist[whereIsSym+1];
     arglist[whereIsSym] = NULL;
     p = pipe(fd);
