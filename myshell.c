@@ -174,7 +174,7 @@ int doPipe(int count, char **arglist, int whereIsSym){
 
 int doRegular(int count, char **arglist){
     char *cmd;
-    int pid, i;
+    int pid;
 
     cmd = arglist[0];
     pid = fork();
