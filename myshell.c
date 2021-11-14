@@ -98,7 +98,7 @@ int doPipe(int count, char **arglist, int whereIsSym){
     int p, pid[2], fd[2], r, w;
     char *cmd;
 
-    cmd = arglist[0];
+    cmd = arglist[whereIsSym+1];
     arglist[whereIsSym] = NULL;
     p = pipe(fd);
     if(p == -1){
@@ -116,7 +116,11 @@ int doPipe(int count, char **arglist, int whereIsSym){
     //child 1
     if(pid[0] == 0){
         SIGINT_handler(1);
-        if(dup2(w,1) == -1){
+         if(close(w) == -1){
+            perror("failed to close write");
+            exit(1);
+        }
+        if(dup2(r,0) == -1){
             perror("failed dup2");
             exit(1);
         }
@@ -124,11 +128,7 @@ int doPipe(int count, char **arglist, int whereIsSym){
             perror("failed to close read");
             exit(1);
         }
-        if(close(w) == -1){
-            perror("failed to close write");
-            exit(1);
-        }
-        execvp(cmd, arglist);
+        execvp(cmd, arglist + whereIsSym + 1);
         // will only reach this line if execvp fails
         perror("failed execvp");
         exit(1);
@@ -140,23 +140,23 @@ int doPipe(int count, char **arglist, int whereIsSym){
         perror("failed fork");
         return 0;
     }
-    cmd = arglist[whereIsSym+1];
+    cmd = arglist[0];
     // child 2
     if(pid[1] == 0){
         SIGINT_handler(1);
-        if(dup2(r,0) == -1){
-            perror("failed dup2");
-            exit(1);
-        }
         if(close(r) == -1){
             perror("failed to close read");
+            exit(1);
+        }
+        if(dup2(w,1) == -1){
+            perror("failed dup2");
             exit(1);
         }
         if(close(w) == -1){
             perror("failed to close write");
             exit(1);
         }
-        execvp(cmd, arglist + whereIsSym + 1);
+        execvp(cmd, arglist);
     }
     // make parent wait until  all child process is done - no zombies!
     if(close(r) == -1){
@@ -167,7 +167,6 @@ int doPipe(int count, char **arglist, int whereIsSym){
         perror("failed to close write");
         return 0;
     } 
-    // is one wait enough? 
     wait(NULL);
     return 1;
 }
