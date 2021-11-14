@@ -96,10 +96,11 @@ int doRedirection(int count, char **arglist){
 
 int doPipe(int count, char **arglist, int whereIsSym){
     int p, fd[2], r, w, pid[2];
-    char *cmd;
+    char **part1, **part2;
 
-    cmd = arglist[whereIsSym+1];
     arglist[whereIsSym] = NULL;
+    part1 = arglist;
+    part2 = arglist + whereIsSym + 1;
     p = pipe(fd);
     if(p == -1){
         perror("failed pipe");
@@ -128,7 +129,7 @@ int doPipe(int count, char **arglist, int whereIsSym){
             perror("failed to close read");
             exit(1);
         }
-        execvp(cmd, arglist + whereIsSym + 1);
+        execvp(part2[0], part2);
         // will only reach this line if execvp fails
         perror("failed execvp");
         exit(1);
@@ -141,7 +142,6 @@ int doPipe(int count, char **arglist, int whereIsSym){
             perror("failed fork");
             return 0;
         }
-        cmd = arglist[0];
         // child 2
         if(pid[1] == 0){
             SIGINT_handler(1);
@@ -157,7 +157,7 @@ int doPipe(int count, char **arglist, int whereIsSym){
                 perror("failed to close write");
                 exit(1);
             }
-            execvp(cmd, arglist);
+            execvp(part1[0], part1);
             // will only reach this line if execvp fails
             perror("failed execvp");
             exit(1);
