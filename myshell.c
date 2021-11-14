@@ -117,19 +117,19 @@ int doPipe(int count, char **arglist, int whereIsSym){
     //child 1
     if(pid[0] == 0){
         SIGINT_handler(1);
-         if(close(w) == -1){
+         if(close(r) == -1){
             perror("failed to close write");
             exit(1);
         }
-        if(dup2(r,0) == -1){
+        if(dup2(w,1) == -1){
             perror("failed dup2");
             exit(1);
         }
-        if(close(r) == -1){
+        if(close(w) == -1){
             perror("failed to close read");
             exit(1);
         }
-        execvp(part2[0], part2);
+        execvp(part1[0], part1);
         // will only reach this line if execvp fails
         perror("failed execvp");
         exit(1);
@@ -145,19 +145,19 @@ int doPipe(int count, char **arglist, int whereIsSym){
         // child 2
         if(pid[1] == 0){
             SIGINT_handler(1);
-            if(close(r) == -1){
+            if(close(w) == -1){
                 perror("failed to close read");
                 exit(1);
             }
-            if(dup2(w,1) == -1){
+            if(dup2(r,0) == -1){
                 perror("failed dup2");
                 exit(1);
             }
-            if(close(w) == -1){
+            if(close(r) == -1){
                 perror("failed to close write");
                 exit(1);
             }
-            execvp(part1[0], part1);
+            execvp(part2[0], part2);
             // will only reach this line if execvp fails
             perror("failed execvp");
             exit(1);
