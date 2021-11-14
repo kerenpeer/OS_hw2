@@ -172,6 +172,7 @@ int doPipe(int count, char **arglist, int whereIsSym){
             perror("failed to close write");
             return 0;
         } 
+        printf("fuck");
         wait(NULL);
         }
     }
