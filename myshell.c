@@ -251,27 +251,34 @@ int finalize(void){
 void which_command(int count, char **arglist, int* res){
     int i;
 
-    if (strcmp(arglist[count -1],"&") == 0){
-       res[0] = 1;
-       res[1] = count -1;
-       return;
-    }
-    if (strcmp(arglist[count -2], ">") == 0){
-        res[0] = 2;
-        res[1] = count -2;
+    if(count >=2){
+        if (strcmp(arglist[count -1],"&") == 0){
+        res[0] = 1;
+        res[1] = count -1;
         return;
-    }
-    for(i = 0; i < count; i++){
-        if(strcmp(arglist[i], "|") == 0){
-            res[0] = 3;
-            res[1] = i;
+        }
+        if (strcmp(arglist[count -2], ">") == 0){
+            res[0] = 2;
+            res[1] = count -2;
             return;
         }
+        for(i = 0; i < count; i++){
+            if(strcmp(arglist[i], "|") == 0){
+                res[0] = 3;
+                res[1] = i;
+                return;
+            }
+        }
+        printf("reached here - main");
+        res[0] = 4;
+        res[1] = 0;
+        return;
     }
-    printf("reached here - main");
-    res[0] = 4;
-    res[1] = 0;
-    return;
+    else{
+        res[0] = 4;
+        res[1] = 0;
+        return; 
+    }
 }
 
 void SIGINT_handler(int shouldTerminate){
