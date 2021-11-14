@@ -272,7 +272,7 @@ void SIGINT_handler(int shouldTerminate){
     sa.sa_flags = SA_RESTART;
     
     if(shouldTerminate == 1){
-        sa.sa_flags = SIG_DFL;
+        sa.sa_handler = SIG_DFL;
         signal = SIGINT;
         changed = sigaction(signal, &sa, NULL);
         if(changed == -1){
@@ -280,7 +280,7 @@ void SIGINT_handler(int shouldTerminate){
         }
     }
      if(shouldTerminate == 0){
-        sa.sa_flags = SIG_IGN;
+        sa.sa_handler = SIG_IGN;
         signal = SIGCHLD;
         changed = sigaction(signal, &sa, NULL);
         if(changed == -1){
