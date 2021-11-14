@@ -182,15 +182,9 @@ int doRegular(int count, char **arglist){
         perror("failed fork");
         return 0;
     }
-    printf("reached here - doReg");
     // Child
     if(pid == 0){
         SIGINT_handler(1);
-        printf("reached here - forked");
-        printf("%s", cmd);
-        for(i = 0; i< count; i++){
-            printf("%s", arglist[i]);
-        }
         execvp(cmd, arglist);
         // will only reach this line if execvp fails
         perror("failed execvp");
@@ -229,7 +223,6 @@ int process_arglist(int count, char **arglist){
      * regular command
      **/
     if(whichCmdAndWhere[0] == 4){
-        printf("reached here - in process args");
         return doRegular(count, arglist);
     }
     return 1;  
@@ -269,7 +262,6 @@ void which_command(int count, char **arglist, int* res){
                 return;
             }
         }
-        printf("reached here - main");
         res[0] = 4;
         res[1] = 0;
         return;
