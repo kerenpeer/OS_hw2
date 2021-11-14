@@ -134,6 +134,7 @@ int doPipe(int count, char **arglist, int whereIsSym){
         perror("failed execvp");
         exit(1);
     }
+    wait(NULL);
     // back to parent
     p2 = fork();
     // child 2  - accecpts input from stdin
