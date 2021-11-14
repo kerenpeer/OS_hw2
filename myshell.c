@@ -21,9 +21,9 @@ void which_command(int count, char **arglist, int* res);
 void SIGINT_handler(int shouldTerminate);
 
 int prepare(void){
-    struct sigaction s;
-    s.sa_flags = SIG_IGN;
-    if(sigaction(SIGINT, s ,NULL)== -1){
+    struct sigaction sa;
+    sa.sa_flags = SIG_IGN;
+    if(sigaction(SIGINT, &sa ,NULL)== -1){
         perror("failed init shell");
         exit(1);
     }
@@ -267,22 +267,22 @@ void which_command(int count, char **arglist, int* res){
 }
 
 void SIGINT_handler(int shouldTerminate){
-    struct sigaction sig;
+    struct sigaction sa;
     int signal, changed;
-    sig.sa_flags = SA_RESTART;
+    sa.sa_flags = SA_RESTART;
     
     if(shouldTerminate == 1){
-        sig.sa_flags = SIG_DFL;
+        sa.sa_flags = SIG_DFL;
         signal = SIGINT;
-        changed = sigaction(signal, &sig, NULL);
+        changed = sigaction(signal, &sa, NULL);
         if(changed == -1){
             perror("failed signals");
         }
     }
      if(shouldTerminate == 0){
-        sig.sa_flags = SIG_IGN;
+        sa.sa_flags = SIG_IGN;
         signal = SIGCHLD;
-        changed = sigaction(signal, &sig, NULL);
+        changed = sigaction(signal, &sa, NULL);
         if(changed == -1){
             perror("failed signals");
         }
