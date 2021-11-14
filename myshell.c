@@ -133,42 +133,46 @@ int doPipe(int count, char **arglist, int whereIsSym){
         perror("failed execvp");
         exit(1);
     }
-    wait(NULL);
-    // back to parent
-    pid[1] = fork();
-    // child 2  - accecpts input from stdin
-    if(pid[1] < 0){
-        perror("failed fork");
-        return 0;
-    }
-    cmd = arglist[0];
-    // child 2
-    if(pid[1] == 0){
-        SIGINT_handler(1);
+    else{
+        // back to parent
+        pid[1] = fork();
+        // child 2  - accecpts input from stdin
+        if(pid[1] < 0){
+            perror("failed fork");
+            return 0;
+        }
+        cmd = arglist[0];
+        // child 2
+        if(pid[1] == 0){
+            SIGINT_handler(1);
+            if(close(r) == -1){
+                perror("failed to close read");
+                exit(1);
+            }
+            if(dup2(w,1) == -1){
+                perror("failed dup2");
+                exit(1);
+            }
+            if(close(w) == -1){
+                perror("failed to close write");
+                exit(1);
+            }
+            execvp(cmd, arglist);
+        }
+        else{
+        // make parent wait until  all child process is done - no zombies!
         if(close(r) == -1){
             perror("failed to close read");
-            exit(1);
-        }
-        if(dup2(w,1) == -1){
-            perror("failed dup2");
-            exit(1);
+            return 0;
         }
         if(close(w) == -1){
             perror("failed to close write");
-            exit(1);
+            return 0;
+        } 
+        wait(NULL);
+    
         }
-        execvp(cmd, arglist);
     }
-    // make parent wait until  all child process is done - no zombies!
-    if(close(r) == -1){
-        perror("failed to close read");
-        return 0;
-    }
-    if(close(w) == -1){
-        perror("failed to close write");
-        return 0;
-    } 
-    wait(NULL);
     return 1;
 }
 
