@@ -158,6 +158,9 @@ int doPipe(int count, char **arglist, int whereIsSym){
                 exit(1);
             }
             execvp(cmd, arglist);
+            // will only reach this line if execvp fails
+            perror("failed execvp");
+            exit(1);
         }
         else{
         // make parent wait until  all child process is done - no zombies!
@@ -170,7 +173,6 @@ int doPipe(int count, char **arglist, int whereIsSym){
             return 0;
         } 
         wait(NULL);
-    
         }
     }
     return 1;
