@@ -22,7 +22,7 @@ void SIGINT_handler(int shouldTerminate);
 
 int prepare(void){
     struct sigaction sa;
-    sa.sa_flags = SIG_IGN;
+    sa.sa_handler = SIG_IGN;
     if(sigaction(SIGINT, &sa ,NULL)== -1){
         perror("failed init shell");
         exit(1);
