@@ -95,7 +95,7 @@ int doRedirection(int count, char **arglist){
 }
 
 int doPipe(int count, char **arglist, int whereIsSym){
-    int p, p1[2], fd[2], r, w, p1,p2;
+    int p, fd[2], r, w, p1,p2;
     char *cmd;
 
     cmd = arglist[whereIsSym+1];
