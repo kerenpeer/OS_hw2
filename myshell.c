@@ -99,6 +99,7 @@ int doPipe(int count, char **arglist, int whereIsSym){
     char *cmd;
 
     cmd = arglist[whereIsSym+1];
+    printf("%s\n",cmd);
     arglist[whereIsSym] = NULL;
     p = pipe(fd);
     if(p == -1){
@@ -141,6 +142,7 @@ int doPipe(int count, char **arglist, int whereIsSym){
         return 0;
     }
     cmd = arglist[0];
+    printf("%s\n",cmd);
     // child 2
     if(p2 == 0){
         SIGINT_handler(1);
@@ -216,6 +218,7 @@ int process_arglist(int count, char **arglist){
      * |
      **/
     if(whichCmdAndWhere[0] == 3){
+        printf("%d\n",whichCmdAndWhere[1]);
         return doPipe(count, arglist, whichCmdAndWhere[1]);
     }
      /**
@@ -256,6 +259,7 @@ void which_command(int count, char **arglist, int* res){
         }
         for(i = 0; i < count; i++){
             if(strcmp(arglist[i], "|") == 0){
+                printf("in here\n");
                 res[0] = 3;
                 res[1] = i;
                 return;
