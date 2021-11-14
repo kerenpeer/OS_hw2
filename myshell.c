@@ -95,8 +95,9 @@ int doRedirection(int count, char **arglist){
 }
 
 int doPipe(int count, char **arglist, int whereIsSym){
-    int p, fd[2], r, w, pid[2];
+    int p, fd[2], r, w, p1,p2;
     char **part1, **part2;
+    p1 = p2 = 0;
 
     arglist[whereIsSym] = NULL;
     part1 = arglist;
@@ -108,14 +109,14 @@ int doPipe(int count, char **arglist, int whereIsSym){
     }
     r = fd[0];
     w = fd[1];
-    pid[0] = fork();
+    p1 = fork();
     // Child 1 - writes to stdout
-    if(pid[0] < 0){
+    if(p1 < 0){
         perror("failed fork");
         return 0;
     }
     //child 1
-    if(pid[0] == 0){
+    if(p1 == 0){
         SIGINT_handler(1);
          if(close(r) == -1){
             perror("failed to close write");
@@ -136,14 +137,14 @@ int doPipe(int count, char **arglist, int whereIsSym){
     }
     else{
         // back to parent
-        pid[1] = fork();
+       p2 = fork();
         // child 2  - accecpts input from stdin
-        if(pid[1] < 0){
+        if(p2 < 0){
             perror("failed fork");
             return 0;
         }
         // child 2
-        if(pid[1] == 0){
+        if(p2 == 0){
             SIGINT_handler(1);
             if(close(w) == -1){
                 perror("failed to close read");
