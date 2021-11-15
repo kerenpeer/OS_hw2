@@ -1,13 +1,14 @@
+#include <unistd.h>
+#include <sys/wait.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <signal.h>
 #include <sys/types.h>
 #include <errno.h>
-#include <unistd.h>
-#include <sys/wait.h>
-#include <sys/stat.h>
-#include <fcntl.h>
+
 
 int prepare(void);
 int process_arglist(int count, char **arglist);
@@ -20,6 +21,11 @@ void which_command(int count, char **arglist, int* res);
 void SIGINT_handler(int shouldTerminate);
 void SIGINT_handler_Parent(void);
 
+/**
+ * @brief function to build the shell, with handler to ignore SIGINT to prevent shell from closing. 
+ * 
+ * @return int 
+ */
 int prepare(void){
     struct sigaction shell = {
         .sa_handler = SIG_IGN
@@ -31,11 +37,19 @@ int prepare(void){
     return 0;
 }
 
+/**
+ * @brief function to execute a background command (with special character "&").
+ * 
+ * @param count 
+ * @param arglist 
+ * @return int 
+ */
 int Background(int count, char **arglist){
     char* cmd;
     int pid;
 
     cmd = arglist[0];
+    // make parent collect background child when done
     SIGINT_handler_Parent();
     pid = fork();
     if(pid < 0){
@@ -44,6 +58,7 @@ int Background(int count, char **arglist){
     } 
     // Child
     if(pid == 0){
+        // make sure ignore SIGINT will happen
         SIGINT_handler(0);
         arglist[count-1] = NULL;
         execvp(cmd, arglist);
@@ -55,11 +70,19 @@ int Background(int count, char **arglist){
     return 1;
 }
 
+/**
+ * @brief function to execute a recirection command (with special character ">").
+ * 
+ * @param count 
+ * @param arglist 
+ * @return int 
+ */
 int Redirection(int count, char **arglist){
     char *cmd, *to;
     int fileDesc, pid;
 
     cmd = arglist[0];
+    //split commant to 2 parts of - command and file
     arglist[count-2] = NULL;
     to = arglist[count-1];
     fileDesc = open(to, O_RDWR | O_CREAT, 00700);
@@ -95,14 +118,22 @@ int Redirection(int count, char **arglist){
         return 0;
     }
     // make parent wait until child process is done - no zombies!
-    wait(NULL);
+    waitpid(pid, NULL, WUNTRACED);   
     return 1;
 }
 
+/**
+ * @brief function to execute a pipe command (with special character "|").
+ * 
+ * @param arglist 
+ * @param whereIsSym 
+ * @return int 
+ */
 int Pipe(char **arglist, int whereIsSym){
     int p, fd[2], r, w, pid[2];
    char *cmd; 
     
+    // split command to 2 parts of pipe 
     arglist[whereIsSym] = NULL;
     cmd = arglist[0];
     p = pipe(fd);
@@ -112,14 +143,15 @@ int Pipe(char **arglist, int whereIsSym){
     }
     r = fd[0];
     w = fd[1];
+    // first child process 
     pid[0] = fork();
-    // Child 1 - writes to stdout
     if(pid[0] < 0){
         perror("failed fork");
         return 0;
     }
-    //child 1
+    // Child 1 - executes first part of command and writes to stdout
     if(pid[0] == 0){
+        // make sure process will stop with SIGINT
         SIGINT_handler(1);
          if(close(r) == -1){
             perror("failed to close write");
@@ -141,14 +173,15 @@ int Pipe(char **arglist, int whereIsSym){
     else{
         // back to parent
         cmd = arglist[whereIsSym+1];
-       pid[1] = fork();
-        // child 2  - accecpts input from stdin
+        pid[1] = fork();
+        // Second child process 
         if(pid[1] < 0){
             perror("failed fork");
             return 0;
         }
-        // child 2
+        // Child 2 - accecpts input from stdin and executes second part of command 
         if(pid[1] == 0){
+             // make sure process will stop with SIGINT
             SIGINT_handler(1);
             if(close(w) == -1){
                 perror("failed to close read");
@@ -167,6 +200,7 @@ int Pipe(char **arglist, int whereIsSym){
             perror("failed execvp");
             exit(1);
         }
+        // Back to parent
         else{
             if(close(r) == -1){
                 perror("failed to close read");
@@ -176,7 +210,7 @@ int Pipe(char **arglist, int whereIsSym){
                 perror("failed to close write");
                 return 0;
             } 
-            // make parent wait until  all child process is done - no zombies!
+            // make parent wait until all child processes are done - no zombies!
             if(waitpid(pid[0], NULL, 0)==-1 && errno != ECHILD){
                 perror("failed waiting for child 1");
                 return 0;
@@ -190,6 +224,13 @@ int Pipe(char **arglist, int whereIsSym){
     return 1;
 }
 
+/**
+ * @brief function to execute a regular command (no special character).
+ * 
+ * @param count 
+ * @param arglist 
+ * @return int 
+ */
 int Regular(int count, char **arglist){
     char *cmd;
     int pid;
@@ -202,6 +243,7 @@ int Regular(int count, char **arglist){
     }
     // Child
     if(pid == 0){
+         // make sure process will stop with SIGINT
         SIGINT_handler(1);
         execvp(cmd, arglist);
         // will only reach this line if execvp fails
@@ -214,6 +256,13 @@ int Regular(int count, char **arglist){
     return 1;
 }
 
+/**
+ * @brief main building function of the shell. Will first categorize the command and then call a compatible function for the excecution.
+ * 
+ * @param count - length of arglist.
+ * @param arglist - the command parsed into words.
+ * @return int - 1 upon success or 0 upon a failiure in a child process. 
+ */
 int process_arglist(int count, char **arglist){
     int *whichCmdAndWhere;
     
@@ -251,14 +300,17 @@ int finalize(void){
 }
 
 /**
+ * @brief 
  * In order to understand what is the command type, we will check for the special characters in the locations described at "ASSUMPTIONS" section:
- *
  * & - the last word of the command line, will appear at arglist[count -2]. The function will return command type = 1.
  * > - appears one before last on the command line, will appear at arglist[count -3]. The function will return command type = 2. 
  * | - appears somewhere in the command, so we will scan it. The function will return command type = 3. 
  * regular command - a command with no special character. The function will return command type = 4. 
  * 
- **/
+ * @param count - length of arglist
+ * @param arglist - command parsed into words
+ * @param res - res[0] - type of command, res[1] - where is the special character.
+ */
 void which_command(int count, char **arglist, int* res){
     int i;
 
@@ -291,6 +343,13 @@ void which_command(int count, char **arglist, int* res){
     }
 }
 
+/**
+ * @brief will change signals handler according to shouldTerminate:
+ * shouldTerminate = 0 : the process is of type "Background" and should not terminate upon SIGINT -> handler = SIG_IGN.
+ * shouldTerminate = 1 : the process is of type "Pipe" / "Regular" / "Redirection" and should terminate upon SIGINT -> handler = SIG_DFL.
+ * 
+ * @param shouldTerminate 
+ */
 void SIGINT_handler(int shouldTerminate){
     struct sigaction sig;
     int signal, changed;
@@ -315,6 +374,10 @@ void SIGINT_handler(int shouldTerminate){
     }
 }
 
+/**
+ * @brief For the parent of a background child, we will change the sa_handler to ignore SIGCHLD so 
+ * that when the background process is finished it won't be a zombie.
+ */
 void SIGINT_handler_Parent(void){
     struct sigaction sig;
     int signal, changed;
