@@ -12,11 +12,10 @@
 int prepare(void);
 int process_arglist(int count, char **arglist);
 int finalize(void);
-int doBackground(int count, char **arglist);
-int doRedirection(int count, char **arglist);
-int doPipe(int count, char **arglist, int whereIsSym);
-int doRegular(int count, char **arglist);
-int process_arglist(int count, char **arglist);
+int Background(int count, char **arglist);
+int Redirection(int count, char **arglist);
+int Pipe(int count, char **arglist, int whereIsSym);
+int Regular(int count, char **arglist);
 void which_command(int count, char **arglist, int* res);
 void SIGINT_handler(int shouldTerminate);
 
@@ -100,15 +99,10 @@ int Redirection(int count, char **arglist){
 
 int Pipe(char **arglist, int whereIsSym){
     int p, fd[2], r, w, pid[2];
-   // char **part1, **part2;
    char *cmd; 
     
     arglist[whereIsSym] = NULL;
     cmd = arglist[0];
-    /*
-    part1 = arglist;
-    part2 = arglist + whereIsSym + 1;
-    */
     p = pipe(fd);
     if(p == -1){
         perror("failed pipe");
@@ -137,7 +131,6 @@ int Pipe(char **arglist, int whereIsSym){
             perror("failed to close read");
             exit(1);
         }
-        //execvp(part1[0], part1);
         execvp(cmd, arglist);
         // will only reach this line if execvp fails
         perror("failed execvp");
@@ -167,30 +160,29 @@ int Pipe(char **arglist, int whereIsSym){
                 perror("failed to close write");
                 exit(1);
             }
-            //execvp(part2[0], part2);
             execvp(cmd, arglist + whereIsSym +1);
             // will only reach this line if execvp fails
             perror("failed execvp");
             exit(1);
         }
         else{
-        // make parent wait until  all child process is done - no zombies!
-        if(close(r) == -1){
-            perror("failed to close read");
-            return 0;
-        }
-        if(close(w) == -1){
-            perror("failed to close write");
-            return 0;
-        } 
-        if(waitpid(pid[0], NULL, 0)==-1 && errno != ECHILD){
-            perror("failed waiting for child 1");
-            return 0;
-        }
-        if(waitpid(pid[1], NULL, 0)==-1 && errno != ECHILD){
-            perror("failed waiting for child 2");
-            return 0;
-        }
+            if(close(r) == -1){
+                perror("failed to close read");
+                return 0;
+            }
+            if(close(w) == -1){
+                perror("failed to close write");
+                return 0;
+            } 
+            // make parent wait until  all child process is done - no zombies!
+            if(waitpid(pid[0], NULL, 0)==-1 && errno != ECHILD){
+                perror("failed waiting for child 1");
+                return 0;
+            }
+            if(waitpid(pid[1], NULL, 0)==-1 && errno != ECHILD){
+                perror("failed waiting for child 2");
+                return 0;
+            }
         }
     }
     return 1;
@@ -311,6 +303,7 @@ void SIGINT_handler(int shouldTerminate){
         }
     }
      if(shouldTerminate == 0){
+        sig.sa_flags = SA_RESTART | SA_NOCLDWAIT | SA_NOCLDSTOP;
         sig.sa_handler = SIG_IGN;
         signal = SIGCHLD;
         changed = sigaction(signal, &sig, NULL);
