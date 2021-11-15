@@ -21,7 +21,7 @@ void which_command(int count, char **arglist, int* res);
 void SIGINT_handler(int shouldTerminate);
 
 int prepare(void){
-    struct sigaction shell{
+    struct sigaction shell = {
         .sa_handler = SIG_IGN;
     };
     if(sigaction(SIGINT, &shell ,NULL)== -1){
@@ -100,7 +100,8 @@ int Redirection(int count, char **arglist){
 
 int Pipe(char **arglist, int whereIsSym){
     int p, fd[2], r, w, pid[2];
-    char **part1, **part2;
+   // char **part1, **part2;
+   char *cmd; 
     
     arglist[whereIsSym] = NULL;
     cmd = arglist[0];
