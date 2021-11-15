@@ -19,6 +19,7 @@ int Pipe(char **arglist, int whereIsSym);
 int Regular(int count, char **arglist);
 void which_command(int count, char **arglist, int* res);
 void SIGINT_handler(int shouldTerminate);
+void SIGINT_handler_Parent(void);
 
 int prepare(void){
     struct sigaction shell = {
@@ -36,7 +37,7 @@ int Background(int count, char **arglist){
     int pid;
 
     cmd = arglist[0];
-    SIGINT_handler(0);
+    SIGINT_handler_Parent();
     pid = fork();
     if(pid < 0){
         perror("failed fork");
@@ -44,6 +45,7 @@ int Background(int count, char **arglist){
     } 
     // Child
     if(pid == 0){
+        SIGINT_handler(0);
         arglist[count-1] = NULL;
         execvp(cmd, arglist);
         // will only reach this line if execvp fails
@@ -304,12 +306,22 @@ void SIGINT_handler(int shouldTerminate){
         }
     }
     if(shouldTerminate == 0){
-        sig.sa_flags = SA_NOCLDSTOP | SA_NOCLDWAIT;
         sig.sa_handler = SIG_IGN;
-        signal = SIGCHLD;
+        signal = SIGINT;
         changed = sigaction(signal, &sig, NULL);
         if(changed == -1){
             perror("failed signals");
         }
+    }
+}
+void SIGINT_handler_Parent(void){
+    struct sigaction sig;
+    int signal, changed;
+    sig.sa_flags = SA_RESTART | SA_NOCLDSTOP | SA_NOCLDWAIT;
+    sig.sa_handler = SIG_IGN;
+    signal = SIGCHLD;
+    changed = sigaction(signal, &sig, NULL);
+    if(changed == -1){
+        perror("failed signals");
     }
 }
