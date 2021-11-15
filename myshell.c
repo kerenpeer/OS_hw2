@@ -318,7 +318,7 @@ void SIGINT_handler(int shouldTerminate){
 void SIGINT_handler_Parent(void){
     struct sigaction sig;
     int signal, changed;
-    sig.sa_flags = SA_RESTART | SA_NOCLDSTOP | SA_NOCLDWAIT;
+    sig.sa_flags = SA_RESTART;
     sig.sa_handler = SIG_IGN;
     signal = SIGCHLD;
     changed = sigaction(signal, &sig, NULL);
