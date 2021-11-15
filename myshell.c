@@ -38,6 +38,7 @@ int Background(int count, char **arglist){
 
     cmd = arglist[0];
     SIGINT_handler_Parent();
+    SIGINT_handler(0);
     pid = fork();
     if(pid < 0){
         perror("failed fork");
