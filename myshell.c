@@ -14,7 +14,7 @@ int process_arglist(int count, char **arglist);
 int finalize(void);
 int Background(int count, char **arglist);
 int Redirection(int count, char **arglist);
-int Pipe(int count, char **arglist, int whereIsSym);
+int Pipe(char **arglist, int whereIsSym);
 int Regular(int count, char **arglist);
 void which_command(int count, char **arglist, int* res);
 void SIGINT_handler(int shouldTerminate);
