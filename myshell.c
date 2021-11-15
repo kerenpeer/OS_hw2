@@ -20,13 +20,9 @@ void which_command(int count, char **arglist, int* res);
 void SIGINT_handler(int shouldTerminate);
 
 int prepare(void){
-    /*
     struct sigaction shell = {
         .sa_handler = SIG_IGN
     };
-    */
-   struct sigaction shell;
-   shell.sa_handler = SIG_IGN;
     if(sigaction(SIGINT, &shell ,NULL)== -1){
         perror("failed init shell");
         exit(1);
@@ -44,9 +40,10 @@ int Background(int count, char **arglist){
         perror("failed fork");
         return 0;
     }
+    SIGINT_handler(0);
     // Child
     if(pid == 0){
-       SIGINT_handler(0);
+        SIGINT_handler(0);
         arglist[count-1] = NULL;
         execvp(cmd, arglist);
         // will only reach this line if execvp fails
@@ -212,7 +209,7 @@ int Regular(int count, char **arglist){
     }
     // Parent
     // make parent wait until child process is done - no zombies!
-    waitpid(pid, NULL, 0);    
+    waitpid(NULL);    
     return 1;
 }
 
