@@ -8,6 +8,7 @@
 #include <sys/wait.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <sys/resource.h>
 
 int prepare(void);
 int process_arglist(int count, char **arglist);
@@ -302,8 +303,8 @@ void SIGINT_handler(int shouldTerminate){
             perror("failed signals");
         }
     }
-     if(shouldTerminate == 0){
-        sig.sa_flags = SA_RESTART | SA_NOCLDSTOP | SA_NOCLDWAIT ;
+    if(shouldTerminate == 0){
+        sig.sa_flags = SA_NOCLDSTOP | SA_NOCLDWAIT;
         sig.sa_handler = SIG_IGN;
         signal = SIGCHLD;
         changed = sigaction(signal, &sig, NULL);
