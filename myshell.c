@@ -45,7 +45,6 @@ int Background(int count, char **arglist){
     } 
     // Child
     if(pid == 0){
-        SIGINT_handler(0);
         arglist[count-1] = NULL;
         execvp(cmd, arglist);
         // will only reach this line if execvp fails
