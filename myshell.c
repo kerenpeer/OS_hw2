@@ -8,7 +8,6 @@
 #include <sys/wait.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <sys/resource.h>
 
 int prepare(void);
 int process_arglist(int count, char **arglist);
@@ -45,7 +44,6 @@ int Background(int count, char **arglist){
     } 
     // Child
     if(pid == 0){
-        SIGINT_handler(0);
         arglist[count-1] = NULL;
         execvp(cmd, arglist);
         // will only reach this line if execvp fails
@@ -296,7 +294,13 @@ void SIGINT_handler(int shouldTerminate){
     struct sigaction sig;
     int signal, changed;
     sig.sa_flags = SA_RESTART;
-    
+    sig.sa_handler = SIG_DFL;
+    signal = SIGINT;
+    changed = sigaction(signal, &sig, NULL);
+    if(changed == -1){
+        perror("failed signals");
+    }
+    /*
     if(shouldTerminate == 1){
         sig.sa_handler = SIG_DFL;
         signal = SIGINT;
@@ -312,8 +316,9 @@ void SIGINT_handler(int shouldTerminate){
         if(changed == -1){
             perror("failed signals");
         }
-    }
+    }*/
 }
+
 void SIGINT_handler_Parent(void){
     struct sigaction sig;
     int signal, changed;
