@@ -21,8 +21,9 @@ void which_command(int count, char **arglist, int* res);
 void SIGINT_handler(int shouldTerminate);
 
 int prepare(void){
-    struct sigaction shell;
-    shell.sa_handler = SIG_IGN;
+    struct sigaction shell{
+        .sa_handler = SIG_IGN;
+    };
     if(sigaction(SIGINT, &shell ,NULL)== -1){
         perror("failed init shell");
         exit(1);
@@ -30,7 +31,7 @@ int prepare(void){
     return 0;
 }
 
-int doBackground(int count, char **arglist){
+int Background(int count, char **arglist){
     char* cmd;
     int pid;
 
@@ -53,7 +54,7 @@ int doBackground(int count, char **arglist){
     return 1;
 }
 
-int doRedirection(int count, char **arglist){
+int Redirection(int count, char **arglist){
     char *cmd, *to;
     int fileDesc, pid;
 
@@ -88,20 +89,25 @@ int doRedirection(int count, char **arglist){
         exit(1);
     }
     // Parent
-    close(fileDesc);
+    if(close(fileDesc)== -1){
+        perror("failed to close fileDesc");
+        return 0;
+    }
     // make parent wait until child process is done - no zombies!
     wait(NULL);
     return 1;
 }
 
-int doPipe(int count, char **arglist, int whereIsSym){
-    int p, fd[2], r, w, p1,p2;
+int Pipe(char **arglist, int whereIsSym){
+    int p, fd[2], r, w, pid[2];
     char **part1, **part2;
-    p1 = p2 = 0;
-
+    
     arglist[whereIsSym] = NULL;
+    cmd = arglist[0];
+    /*
     part1 = arglist;
     part2 = arglist + whereIsSym + 1;
+    */
     p = pipe(fd);
     if(p == -1){
         perror("failed pipe");
@@ -109,14 +115,14 @@ int doPipe(int count, char **arglist, int whereIsSym){
     }
     r = fd[0];
     w = fd[1];
-    p1 = fork();
+    pid[0] = fork();
     // Child 1 - writes to stdout
-    if(p1 < 0){
+    if(pid[0] < 0){
         perror("failed fork");
         return 0;
     }
     //child 1
-    if(p1 == 0){
+    if(pid[0] == 0){
         SIGINT_handler(1);
          if(close(r) == -1){
             perror("failed to close write");
@@ -130,21 +136,23 @@ int doPipe(int count, char **arglist, int whereIsSym){
             perror("failed to close read");
             exit(1);
         }
-        execvp(part1[0], part1);
+        //execvp(part1[0], part1);
+        execvp(cmd, arglist);
         // will only reach this line if execvp fails
         perror("failed execvp");
         exit(1);
     }
     else{
         // back to parent
-       p2 = fork();
+        cmd = arglist[whereIsSym+1];
+       pid[1] = fork();
         // child 2  - accecpts input from stdin
-        if(p2 < 0){
+        if(pid[1] < 0){
             perror("failed fork");
             return 0;
         }
         // child 2
-        if(p2 == 0){
+        if(pid[1] == 0){
             SIGINT_handler(1);
             if(close(w) == -1){
                 perror("failed to close read");
@@ -158,7 +166,8 @@ int doPipe(int count, char **arglist, int whereIsSym){
                 perror("failed to close write");
                 exit(1);
             }
-            execvp(part2[0], part2);
+            //execvp(part2[0], part2);
+            execvp(cmd, arglist + whereIsSym +1);
             // will only reach this line if execvp fails
             perror("failed execvp");
             exit(1);
@@ -173,14 +182,20 @@ int doPipe(int count, char **arglist, int whereIsSym){
             perror("failed to close write");
             return 0;
         } 
-        printf("fuck");
-        wait(NULL);
+        if(waitpid(pid[0], NULL, 0)==-1 && errno != ECHILD){
+            perror("failed waiting for child 1");
+            return 0;
+        }
+        if(waitpid(pid[1], NULL, 0)==-1 && errno != ECHILD){
+            perror("failed waiting for child 2");
+            return 0;
+        }
         }
     }
     return 1;
 }
 
-int doRegular(int count, char **arglist){
+int Regular(int count, char **arglist){
     char *cmd;
     int pid;
 
@@ -213,25 +228,25 @@ int process_arglist(int count, char **arglist){
      * &
      **/
     if(whichCmdAndWhere[0] == 1){
-       return doBackground(count, arglist);
+       return Background(count, arglist);
     }
      /**
      * >
      **/
     if(whichCmdAndWhere[0] == 2){
-       return doRedirection(count, arglist);
+       return Redirection(count, arglist);
     }
      /**
      * |
      **/
     if(whichCmdAndWhere[0] == 3){
-        return doPipe(count, arglist, whichCmdAndWhere[1]);
+        return Pipe(arglist, whichCmdAndWhere[1]);
     }
      /**
      * regular command
      **/
     if(whichCmdAndWhere[0] == 4){
-        return doRegular(count, arglist);
+        return Regular(count, arglist);
     }
     return 1;  
 }
