@@ -209,7 +209,7 @@ int Regular(int count, char **arglist){
     }
     // Parent
     // make parent wait until child process is done - no zombies!
-    waitpid(NULL);    
+    wait(NULL);    
     return 1;
 }
 
