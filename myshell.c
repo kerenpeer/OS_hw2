@@ -1,3 +1,13 @@
+/**
+ * @file myshell.c
+ * @author Keren Or Pe'er
+ * @brief 
+ * @version 0.1
+ * @date 2021-11-15
+ * 
+ * @copyright Copyright (c) 2021
+ * 
+ */
 #include <unistd.h>
 #include <sys/wait.h>
 #include <sys/stat.h>
