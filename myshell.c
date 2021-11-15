@@ -303,7 +303,7 @@ void SIGINT_handler(int shouldTerminate){
         }
     }
      if(shouldTerminate == 0){
-        sig.sa_flags = SA_RESTART | SA_NOCLDWAIT | SA_NOCLDSTOP;
+        sig.sa_flags = SA_RESTART | SA_NOCLDSTOP | SA_NOCLDWAIT ;
         sig.sa_handler = SIG_IGN;
         signal = SIGCHLD;
         changed = sigaction(signal, &sig, NULL);
